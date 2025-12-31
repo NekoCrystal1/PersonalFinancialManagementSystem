@@ -1,0 +1,58 @@
+/* 基础样式 */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    background-color: #f5f7fa;
+    color: #333;
+    padding: 20px;
+    min-height: 100vh;
+}
+
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    background-color: white;
+    border-radius: 15px;
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
+    padding: 30px;
+}
+
+/* 头部样式 */
+header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 2px solid #eaeaea;
+}
+
+h1 {
+    color: #2c3e50;
+    font-size: 2.5rem;
+    margin-bottom: 10px;
+}
+
+h1 i {
+    color: #3498db;
+    margin-right: 15px;
+}
+
+.subtitle {
+    color: #7f8c8d;
+    font-size: 1.2rem;
+}
+
+/* 底部样式 */
+footer {
+    margin-top: 50px;
+    text-align: center;
+    color: #95a5a6;
+    font-size: 0.9rem;
+    padding-top: 20px;
+    border-top: 1px solid #eaeaea;
+}
