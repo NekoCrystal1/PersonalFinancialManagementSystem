@@ -49,13 +49,17 @@ function formatAmount(amount) {
 
 // 3. 获取分类名称（根据分类ID）
 function getCategoryName(categoryId) {
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find(c => {
+        return c.id == categoryId
+    });
     return category ? category.name : '其他';
 }
 
 // 4. 获取分类图标
 function getCategoryIcon(categoryId) {
-    const category = categories.find(c => c.id === categoryId);
+    const category = categories.find(c => {
+        return c.id == categoryId
+    });
     return category ? category.icon : '📦';
 }
 
