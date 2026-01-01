@@ -135,6 +135,85 @@ app.get('/api/summary/:year/:month', async (req, res) => {
     }
 });
 
+// 6. 删除交易记录
+app.delete('/api/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await pool.request()
+            .input('id', db.sql.Int, id)
+            .query('DELETE FROM transactions WHERE id = @id');
+        
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: '记录不存在' });
+        }
+        
+        res.json({ success: true, message: '记录删除成功', id: parseInt(id) });
+    } catch (err) {
+        res.status(500).json({ error: '删除记录失败', details: err.message });
+    }
+});
+
+// 7. 更新交易记录
+app.put('/api/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { date, type, category, amount, description } = req.body;
+        
+        // 验证必需字段
+        if (!date || !type || !amount) {
+            return res.status(400).json({ error: '缺少必需字段: date, type, amount' });
+        }
+        
+        const result = await pool.request()
+            .input('id', db.sql.Int, id)
+            .input('date', db.sql.Date, date)
+            .input('type', db.sql.VarChar, type)
+            .input('category', db.sql.VarChar, category || '其他')
+            .input('amount', db.sql.Decimal(10, 2), parseFloat(amount))
+            .input('description', db.sql.VarChar, description || '')
+            .query(`
+                UPDATE transactions 
+                SET date = @date, 
+                    type = @type, 
+                    category = @category, 
+                    amount = @amount, 
+                    description = @description,
+                    created_at = GETDATE()
+                WHERE id = @id;
+                
+                SELECT * FROM transactions WHERE id = @id;
+            `);
+        
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: '记录不存在' });
+        }
+        
+        res.json(result.recordset[0]);
+    } catch (err) {
+        res.status(500).json({ error: '更新记录失败', details: err.message });
+    }
+});
+
+// 8. 获取单条记录
+app.get('/api/transactions/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await pool.request()
+            .input('id', db.sql.Int, id)
+            .query('SELECT * FROM transactions WHERE id = @id');
+        
+        if (result.recordset.length === 0) {
+            return res.status(404).json({ error: '记录不存在' });
+        }
+        
+        res.json(result.recordset[0]);
+    } catch (err) {
+        res.status(500).json({ error: '获取记录失败', details: err.message });
+    }
+});
+
 // 第七部分：错误处理中间件
 app.use((err, req, res, next) => {
     console.error('❌ 服务器错误:', err.stack);

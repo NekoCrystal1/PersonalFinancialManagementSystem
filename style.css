@@ -475,3 +475,33 @@ tbody td {
         padding: 6px;
     }
 }
+
+/* ====== 取消编辑按钮样式 ====== */
+.btn-cancel {
+    background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 15px 30px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.btn-cancel:hover {
+    background: linear-gradient(135deg, #7f8c8d, #6c7b7d);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(127, 140, 141, 0.3);
+}
+
+/* 当有取消按钮时，提交按钮的样式调整 */
+#add-record-form:has(#cancel-edit-btn) .btn-submit {
+    margin-top: 0;
+}

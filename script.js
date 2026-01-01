@@ -119,6 +119,233 @@ async function addTransaction(transactionData) {
     }
 }
 
+// ==================== 删除记录函数 ====================
+async function deleteRecord(id) {
+    if (!confirm('确定要删除这条记录吗？此操作不可撤销。')) {
+        return;
+    }
+    
+    try {
+        console.log(`🗑️ 正在删除记录: ${id}`);
+        
+        const response = await fetch(`${API_BASE_URL}/transactions/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '删除失败');
+        }
+        
+        const result = await response.json();
+        console.log('✅ 删除成功:', result);
+        
+        // 从本地数据中移除
+        allTransactions = allTransactions.filter(record => record.id !== id);
+        
+        // 更新UI
+        updateSummaryCards();
+        renderTransactions();
+        
+        // 显示成功消息
+        showMessage('记录删除成功！', 'success');
+        
+    } catch (error) {
+        console.error('❌ 删除记录失败:', error);
+        showMessage(`删除失败: ${error.message}`, 'error');
+    }
+}
+
+// ==================== 编辑记录功能 ====================
+let editingId = null; // 当前正在编辑的记录ID
+
+// 1. 加载记录到表单
+async function loadRecordForEdit(id) {
+    try {
+        console.log(`📝 正在加载记录 ${id} 用于编辑`);
+        
+        const response = await fetch(`${API_BASE_URL}/transactions/${id}`);
+        if (!response.ok) {
+            throw new Error('获取记录失败');
+        }
+        
+        const record = await response.json();
+        
+        // 填充表单
+        dateInput.value = record.date;
+        typeSelect.value = record.type;
+        
+        // 更新分类选项
+        updateCategoryOptions();
+        
+        // 设置分类（需要等待分类选项更新）
+        setTimeout(() => {
+            categorySelect.value = record.category;
+            amountInput.value = record.amount;
+            descriptionInput.value = record.description || '';
+            
+            // 更新提交按钮文本
+            const submitButton = addRecordForm.querySelector('button[type="submit"]');
+            submitButton.innerHTML = '<i class="fas fa-save"></i> 更新记录';
+            
+            // 添加取消编辑按钮
+            if (!document.getElementById('cancel-edit-btn')) {
+                const cancelBtn = document.createElement('button');
+                cancelBtn.id = 'cancel-edit-btn';
+                cancelBtn.type = 'button';
+                cancelBtn.className = 'btn-cancel';
+                cancelBtn.innerHTML = '<i class="fas fa-times"></i> 取消编辑';
+                cancelBtn.onclick = cancelEdit;
+                
+                addRecordForm.appendChild(cancelBtn);
+            }
+        }, 100);
+        
+        // 设置正在编辑的ID
+        editingId = id;
+        
+        // 滚动到表单
+        addRecordForm.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        
+        showMessage(`正在编辑记录 #${id}`, 'info');
+        
+    } catch (error) {
+        console.error('❌ 加载编辑记录失败:', error);
+        showMessage(`加载记录失败: ${error.message}`, 'error');
+    }
+}
+
+// 2. 取消编辑
+function cancelEdit() {
+    editingId = null;
+    
+    // 重置表单
+    addRecordForm.reset();
+    
+    // 恢复默认日期
+    const today = new Date().toISOString().split('T')[0];
+    dateInput.value = today;
+    
+    // 恢复提交按钮文本
+    const submitButton = addRecordForm.querySelector('button[type="submit"]');
+    submitButton.innerHTML = '<i class="fas fa-save"></i> 保存记录';
+    
+    // 移除取消按钮
+    const cancelBtn = document.getElementById('cancel-edit-btn');
+    if (cancelBtn) cancelBtn.remove();
+    
+    // 更新分类选项
+    updateCategoryOptions();
+    
+    showMessage('已取消编辑', 'info');
+}
+
+// 3. 修改表单提交处理函数
+async function handleFormSubmit(event) {
+    event.preventDefault();
+    
+    const submitButton = addRecordForm.querySelector('button[type="submit"]');
+    const originalText = submitButton.innerHTML;
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
+    submitButton.disabled = true;
+    
+    try {
+        const formData = {
+            date: dateInput.value,
+            type: typeSelect.value,
+            category: categorySelect.value,
+            amount: parseFloat(amountInput.value),
+            description: descriptionInput.value.trim()
+        };
+        
+        // 验证数据
+        if (!formData.date || !formData.type || !formData.amount) {
+            throw new Error('请填写所有必填字段');
+        }
+        
+        if (formData.amount <= 0) {
+            throw new Error('金额必须大于0');
+        }
+        
+        let updatedRecord;
+        
+        if (editingId) {
+            // 更新现有记录
+            console.log(`🔄 正在更新记录: ${editingId}`);
+            
+            const response = await fetch(`${API_BASE_URL}/transactions/${editingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || '更新失败');
+            }
+            
+            updatedRecord = await response.json();
+            
+            // 更新本地数据
+            const index = allTransactions.findIndex(r => r.id === editingId);
+            if (index !== -1) {
+                allTransactions[index] = updatedRecord;
+            }
+            
+            showMessage('记录更新成功！', 'success');
+            
+        } else {
+            // 添加新记录
+            console.log('📝 正在添加新记录');
+            
+            const response = await fetch(`${API_BASE_URL}/transactions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || '添加失败');
+            }
+            
+            updatedRecord = await response.json();
+            allTransactions.unshift(updatedRecord);
+            
+            showMessage('记录添加成功！', 'success');
+        }
+        
+        // 更新UI
+        updateSummaryCards();
+        renderTransactions();
+        
+        // 重置表单
+        addRecordForm.reset();
+        updateCategoryOptions();
+        
+        // 恢复默认日期
+        const today = new Date().toISOString().split('T')[0];
+        dateInput.value = today;
+        
+        // 取消编辑状态
+        if (editingId) {
+            cancelEdit();
+        }
+        
+    } catch (error) {
+        console.error('❌ 表单提交失败:', error);
+        showMessage(`提交失败: ${error.message}`, 'error');
+    } finally {
+        submitButton.innerHTML = originalText;
+        submitButton.disabled = false;
+    }
+}
+
+// 4. 修改editRecord函数
+function editRecord(id) {
+    loadRecordForEdit(id);
+}
+
 // ==================== 数据渲染函数 ====================
 // 1. 更新统计卡片
 function updateSummaryCards() {
@@ -426,17 +653,6 @@ async function initializeApp() {
         console.error('❌ 应用初始化失败:', error);
         showMessage('初始化失败，请刷新页面重试', 'error');
     }
-}
-
-// ==================== 占位函数（后续实现） ====================
-function editRecord(id) {
-    showMessage('编辑功能将在下一步实现', 'info');
-    console.log('📝 编辑记录:', id);
-}
-
-function deleteRecord(id) {
-    showMessage('删除功能将在下一步实现', 'info');
-    console.log('🗑️ 删除记录:', id);
 }
 
 // ==================== 事件监听器 ====================
