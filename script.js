@@ -59,6 +59,14 @@ function getCategoryIcon(categoryId) {
     return category ? category.icon : '📦';
 }
 
+/**更新UI */
+function updateUI()
+{
+    updateSummaryCards();
+    renderTransactions();
+    updateCharts();
+}
+
 // ==================== API调用函数 ====================
 // 1. 获取所有交易记录
 async function fetchTransactions() {
@@ -144,8 +152,7 @@ async function deleteRecord(id) {
         allTransactions = allTransactions.filter(record => record.id !== id);
         
         // 更新UI
-        updateSummaryCards();
-        renderTransactions();
+        updateUI();
         
         // 显示成功消息
         showMessage('记录删除成功！', 'success');
@@ -241,105 +248,6 @@ function cancelEdit() {
 }
 
 // 3. 修改表单提交处理函数
-async function handleFormSubmit(event) {
-    event.preventDefault();
-    
-    const submitButton = addRecordForm.querySelector('button[type="submit"]');
-    const originalText = submitButton.innerHTML;
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
-    submitButton.disabled = true;
-    
-    try {
-        const formData = {
-            date: dateInput.value,
-            type: typeSelect.value,
-            category: categorySelect.value,
-            amount: parseFloat(amountInput.value),
-            description: descriptionInput.value.trim()
-        };
-        
-        // 验证数据
-        if (!formData.date || !formData.type || !formData.amount) {
-            throw new Error('请填写所有必填字段');
-        }
-        
-        if (formData.amount <= 0) {
-            throw new Error('金额必须大于0');
-        }
-        
-        let updatedRecord;
-        
-        if (editingId) {
-            // 更新现有记录
-            console.log(`🔄 正在更新记录: ${editingId}`);
-            
-            const response = await fetch(`${API_BASE_URL}/transactions/${editingId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || '更新失败');
-            }
-            
-            updatedRecord = await response.json();
-            
-            // 更新本地数据
-            const index = allTransactions.findIndex(r => r.id === editingId);
-            if (index !== -1) {
-                allTransactions[index] = updatedRecord;
-            }
-            
-            showMessage('记录更新成功！', 'success');
-            
-        } else {
-            // 添加新记录
-            console.log('📝 正在添加新记录');
-            
-            const response = await fetch(`${API_BASE_URL}/transactions`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.details || '添加失败');
-            }
-            
-            updatedRecord = await response.json();
-            allTransactions.unshift(updatedRecord);
-            
-            showMessage('记录添加成功！', 'success');
-        }
-        
-        // 更新UI
-        updateSummaryCards();
-        renderTransactions();
-        
-        // 重置表单
-        addRecordForm.reset();
-        updateCategoryOptions();
-        
-        // 恢复默认日期
-        const today = new Date().toISOString().split('T')[0];
-        dateInput.value = today;
-        
-        // 取消编辑状态
-        if (editingId) {
-            cancelEdit();
-        }
-        
-    } catch (error) {
-        console.error('❌ 表单提交失败:', error);
-        showMessage(`提交失败: ${error.message}`, 'error');
-    } finally {
-        submitButton.innerHTML = originalText;
-        submitButton.disabled = false;
-    }
-}
 
 // 4. 修改editRecord函数
 function editRecord(id) {
@@ -377,6 +285,8 @@ function updateSummaryCards() {
 
 // 2. 渲染记录表格
 function renderTransactions() {
+    // 更新图表（因为筛选可能影响数据）
+    updateCharts();
     // 隐藏加载状态
     if (loadingRow) loadingRow.style.display = 'none';
     
@@ -479,14 +389,12 @@ function updateCategoryOptions() {
 async function handleFormSubmit(event) {
     event.preventDefault();
     
-    // 禁用提交按钮防止重复提交
     const submitButton = addRecordForm.querySelector('button[type="submit"]');
     const originalText = submitButton.innerHTML;
-    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+    submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 处理中...';
     submitButton.disabled = true;
     
     try {
-        // 收集表单数据
         const formData = {
             date: dateInput.value,
             type: typeSelect.value,
@@ -494,8 +402,6 @@ async function handleFormSubmit(event) {
             amount: parseFloat(amountInput.value),
             description: descriptionInput.value.trim()
         };
-        
-        console.log('📝 提交表单数据:', formData);
         
         // 验证数据
         if (!formData.date || !formData.type || !formData.amount) {
@@ -506,32 +412,74 @@ async function handleFormSubmit(event) {
             throw new Error('金额必须大于0');
         }
         
-        // 发送到服务器
-        const newRecord = await addTransaction(formData);
+        let updatedRecord;
         
-        // 添加到本地数据
-        allTransactions.unshift(newRecord);
+        if (editingId) {
+            // 更新现有记录
+            console.log(`🔄 正在更新记录: ${editingId}`);
+            
+            const response = await fetch(`${API_BASE_URL}/transactions/${editingId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || '更新失败');
+            }
+            
+            updatedRecord = await response.json();
+            
+            // 更新本地数据
+            const index = allTransactions.findIndex(r => r.id === editingId);
+            if (index !== -1) {
+                allTransactions[index] = updatedRecord;
+            }
+            
+            showMessage('记录更新成功！', 'success');
+            
+        } else {
+            // 添加新记录
+            console.log('📝 正在添加新记录');
+            
+            const response = await fetch(`${API_BASE_URL}/transactions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(formData)
+            });
+            
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.details || '添加失败');
+            }
+            
+            updatedRecord = await response.json();
+            allTransactions.unshift(updatedRecord);
+            
+            showMessage('记录添加成功！', 'success');
+        }
         
         // 更新UI
-        updateSummaryCards();
-        renderTransactions();
+        updateUI();
         
         // 重置表单
         addRecordForm.reset();
         updateCategoryOptions();
         
-        // 设置默认日期为今天
+        // 恢复默认日期
         const today = new Date().toISOString().split('T')[0];
         dateInput.value = today;
         
-        // 显示成功消息
-        showMessage('记录添加成功！', 'success');
+        // 取消编辑状态
+        if (editingId) {
+            cancelEdit();
+        }
         
     } catch (error) {
         console.error('❌ 表单提交失败:', error);
         showMessage(`提交失败: ${error.message}`, 'error');
     } finally {
-        // 恢复提交按钮
         submitButton.innerHTML = originalText;
         submitButton.disabled = false;
     }
@@ -630,7 +578,7 @@ async function initializeApp() {
     const today = new Date().toISOString().split('T')[0];
     dateInput.value = today;
     filterMonthInput.value = currentMonth;
-    
+
     try {
         // 1. 加载分类数据
         console.log('📂 正在加载分类数据...');
@@ -642,10 +590,10 @@ async function initializeApp() {
         allTransactions = await fetchTransactions();
         
         // 3. 更新UI
-        updateSummaryCards();
-        renderTransactions();
+        // 4. 更新图表
+        updateUI();
         
-        // 4. 显示成功消息
+        // 5. 显示成功消息
         showMessage('数据加载完成！', 'success');
         
         console.log('✅ 应用初始化完成');
@@ -667,6 +615,458 @@ document.addEventListener('DOMContentLoaded', () => {
     typeSelect.addEventListener('change', updateCategoryOptions);
     filterTypeSelect.addEventListener('change', handleFilterChange);
     filterMonthInput.addEventListener('change', handleFilterChange);
+    
+    // 显示测试消息
+    setTimeout(() => {
+        showMessage('个人财务管理工具已就绪！', 'success');
+    }, 1000);
+});
+
+// ==================== 图表相关功能 ====================
+let pieChart = null;
+let barChart = null;
+
+// 1. 初始化饼图（收支比例）
+function initPieChart(income, expense) {
+    const ctx = document.getElementById('pie-chart').getContext('2d');
+    
+    // 销毁旧图表
+    if (pieChart) {
+        pieChart.destroy();
+    }
+    
+    const data = {
+        labels: ['收入', '支出'],
+        datasets: [{
+            data: [income, expense],
+            backgroundColor: [
+                'rgba(46, 204, 113, 0.8)',  // 收入 - 绿色
+                'rgba(231, 76, 60, 0.8)'    // 支出 - 红色
+            ],
+            borderColor: [
+                'rgba(46, 204, 113, 1)',
+                'rgba(231, 76, 60, 1)'
+            ],
+            borderWidth: 1,
+            hoverOffset: 15
+        }]
+    };
+    
+    const options = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                display: false // 我们自定义图例
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        const label = context.label || '';
+                        const value = context.raw || 0;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = Math.round((value / total) * 100);
+                        return `${label}: ¥${value.toFixed(2)} (${percentage}%)`;
+                    }
+                }
+            }
+        }
+    };
+    
+    pieChart = new Chart(ctx, {
+        type: 'pie',
+        data: data,
+        options: options
+    });
+    
+    // 更新自定义图例
+    updatePieChartLegend(income, expense);
+}
+
+// 2. 更新饼图图例
+function updatePieChartLegend(income, expense) {
+    const legendContainer = document.getElementById('pie-chart-legend');
+    const total = income + expense;
+    
+    const legendHtml = `
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgba(46, 204, 113, 0.8)"></div>
+            <span class="legend-label">收入</span>
+            <span class="legend-value">¥${income.toFixed(2)} (${total > 0 ? Math.round((income / total) * 100) : 0}%)</span>
+        </div>
+        <div class="legend-item">
+            <div class="legend-color" style="background-color: rgba(231, 76, 60, 0.8)"></div>
+            <span class="legend-label">支出</span>
+            <span class="legend-value">¥${expense.toFixed(2)} (${total > 0 ? Math.round((expense / total) * 100) : 0}%)</span>
+        </div>
+    `;
+    
+    legendContainer.innerHTML = legendHtml;
+}
+
+// 3. 初始化柱状图（分类支出）
+function initBarChart(monthData = null) {
+    const ctx = document.getElementById('bar-chart').getContext('2d');
+    
+    // 销毁旧图表
+    if (barChart) {
+        barChart.destroy();
+    }
+    
+    // 获取当前月份的支出数据
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const monthToShow = monthData || currentMonth;
+    
+    const monthExpenses = allTransactions.filter(record => 
+        record.type === 'expense' && 
+        record.date.slice(0, 7) === monthToShow
+    );
+    
+    // 按分类分组
+    const categoriesMap = {};
+    monthExpenses.forEach(record => {
+        const categoryName = getCategoryName(record.category);
+        if (!categoriesMap[categoryName]) {
+            categoriesMap[categoryName] = 0;
+        }
+        categoriesMap[categoryName] += parseFloat(record.amount);
+    });
+    
+    const categories = Object.keys(categoriesMap);
+    const amounts = Object.values(categoriesMap);
+    
+    // 如果没有数据，显示空图表
+    if (categories.length === 0) {
+        categories.push('暂无数据');
+        amounts.push(1);
+    }
+    
+    // 生成颜色
+    const backgroundColors = categories.map((_, index) => {
+        const hue = (index * 137.5) % 360; // 黄金角度，确保颜色分布均匀
+        return `hsla(${hue}, 70%, 60%, 0.8)`;
+    });
+    
+    const data = {
+        labels: categories,
+        datasets: [{
+            label: '支出金额 (¥)',
+            data: amounts,
+            backgroundColor: backgroundColors,
+            borderColor: backgroundColors.map(color => color.replace('0.8', '1')),
+            borderWidth: 1,
+            borderRadius: 5
+        }]
+    };
+    
+    const options = {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            legend: {
+                display: false
+            },
+            tooltip: {
+                callbacks: {
+                    label: function(context) {
+                        return `${context.label}: ¥${context.raw.toFixed(2)}`;
+                    }
+                }
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                ticks: {
+                    callback: function(value) {
+                        return '¥' + value;
+                    }
+                }
+            }
+        }
+    };
+    
+    barChart = new Chart(ctx, {
+        type: 'bar',
+        data: data,
+        options: options
+    });
+}
+
+// 4. 更新图表数据
+function updateCharts() {
+    // 获取当前月份的数据
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    const monthData = allTransactions.filter(record => 
+        record.date.slice(0, 7) === currentMonth
+    );
+    
+    let totalIncome = 0;
+    let totalExpense = 0;
+    
+    monthData.forEach(record => {
+        if (record.type === 'income') {
+            totalIncome += parseFloat(record.amount);
+        } else {
+            totalExpense += parseFloat(record.amount);
+        }
+    });
+    
+    // 更新饼图
+    initPieChart(totalIncome, totalExpense);
+    
+    // 更新柱状图
+    initBarChart(currentMonth);
+}
+
+// ==================== 导出功能 ====================
+
+// 1. 导出为CSV
+function exportToCSV() {
+    try {
+        const exportCurrentMonth = document.getElementById('export-current-month').checked;
+        let dataToExport = allTransactions;
+        
+        if (exportCurrentMonth) {
+            const currentMonth = new Date().toISOString().slice(0, 7);
+            dataToExport = allTransactions.filter(record => 
+                record.date.slice(0, 7) === currentMonth
+            );
+        }
+        
+        if (dataToExport.length === 0) {
+            showMessage('没有可导出的数据', 'error');
+            return;
+        }
+        
+        // CSV标题行
+        const headers = ['日期', '类型', '分类', '金额', '描述', '创建时间'];
+        
+        // 转换数据
+        const csvData = dataToExport.map(record => [
+            record.date,
+            record.type === 'income' ? '收入' : '支出',
+            getCategoryName(record.category),
+            record.amount,
+            record.description || '',
+            new Date(record.created_at).toLocaleString('zh-CN')
+        ]);
+        
+        // 创建CSV内容
+        const csvContent = [
+            headers.join(','),
+            ...csvData.map(row => row.map(cell => {
+                // 处理包含逗号、引号或换行符的单元格
+                if (typeof cell === 'string' && (cell.includes(',') || cell.includes('"') || cell.includes('\n'))) {
+                    return `"${cell.replace(/"/g, '""')}"`;
+                }
+                return cell;
+            }).join(','))
+        ].join('\n');
+        
+        // 创建Blob并下载
+        const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        const dateStr = new Date().toISOString().slice(0, 10);
+        const monthStr = exportCurrentMonth ? `_${new Date().toISOString().slice(0, 7)}` : '';
+        link.setAttribute('href', url);
+        link.setAttribute('download', `财务记录_${dateStr}${monthStr}.csv`);
+        link.style.visibility = 'hidden';
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        showMessage('CSV导出成功！', 'success');
+        console.log(`📊 导出 ${dataToExport.length} 条记录到CSV`);
+        
+    } catch (error) {
+        console.error('❌ CSV导出失败:', error);
+        showMessage(`导出失败: ${error.message}`, 'error');
+    }
+}
+
+// 2. 导出为PDF（简化版 - 使用打印功能）
+function exportToPDF() {
+    showMessage('PDF导出功能需要额外库支持，这里使用打印功能替代', 'info');
+    printReport();
+}
+
+// 3. 打印报表
+function printReport() {
+    const printWindow = window.open('', '_blank');
+    const exportCurrentMonth = document.getElementById('export-current-month').checked;
+    
+    let dataToExport = allTransactions;
+    if (exportCurrentMonth) {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        dataToExport = allTransactions.filter(record => 
+            record.date.slice(0, 7) === currentMonth
+        );
+    }
+    
+    // 计算统计数据
+    let totalIncome = 0;
+    let totalExpense = 0;
+    const categorySummary = {};
+    
+    dataToExport.forEach(record => {
+        if (record.type === 'income') {
+            totalIncome += parseFloat(record.amount);
+        } else {
+            totalExpense += parseFloat(record.amount);
+            const categoryName = getCategoryName(record.category);
+            categorySummary[categoryName] = (categorySummary[categoryName] || 0) + parseFloat(record.amount);
+        }
+    });
+    
+    const balance = totalIncome - totalExpense;
+    const currentDate = new Date().toLocaleDateString('zh-CN');
+    
+    // 构建打印内容
+    const printContent = `
+        <!DOCTYPE html>
+        <html lang="zh-CN">
+        <head>
+            <meta charset="UTF-8">
+            <title>财务报告 - ${currentDate}</title>
+            <style>
+                body { font-family: 'SimSun', serif; margin: 20px; }
+                .print-header { text-align: center; margin-bottom: 30px; }
+                .print-header h1 { color: #333; margin-bottom: 10px; }
+                .print-header .subtitle { color: #666; font-size: 16px; }
+                .stats-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 30px 0; }
+                .stat-card { border: 1px solid #ddd; padding: 20px; text-align: center; border-radius: 8px; }
+                .stat-card.income { border-top: 4px solid #2ecc71; }
+                .stat-card.expense { border-top: 4px solid #e74c3c; }
+                .stat-card.balance { border-top: 4px solid #3498db; }
+                .stat-value { font-size: 24px; font-weight: bold; margin: 10px 0; }
+                .stat-label { color: #666; }
+                table { width: 100%; border-collapse: collapse; margin: 30px 0; }
+                th { background-color: #f5f5f5; padding: 12px; text-align: left; border-bottom: 2px solid #ddd; }
+                td { padding: 10px 12px; border-bottom: 1px solid #eee; }
+                tr:hover { background-color: #f9f9f9; }
+                .income-row { color: #2ecc71; }
+                .expense-row { color: #e74c3c; }
+                .category-summary { margin: 30px 0; }
+                .category-item { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #eee; }
+                .print-footer { margin-top: 50px; text-align: center; color: #999; font-size: 14px; }
+                @media print {
+                    .no-print { display: none; }
+                    .stat-card { break-inside: avoid; }
+                }
+            </style>
+        </head>
+        <body>
+            <div class="print-header">
+                <h1>个人财务报告</h1>
+                <div class="subtitle">生成时间: ${currentDate} | 记录数量: ${dataToExport.length} 条</div>
+                <div class="subtitle">${exportCurrentMonth ? '本月数据' : '全部数据'}</div>
+            </div>
+            
+            <div class="stats-grid">
+                <div class="stat-card income">
+                    <div class="stat-label">总收入</div>
+                    <div class="stat-value">¥${totalIncome.toFixed(2)}</div>
+                </div>
+                <div class="stat-card expense">
+                    <div class="stat-label">总支出</div>
+                    <div class="stat-value">¥${totalExpense.toFixed(2)}</div>
+                </div>
+                <div class="stat-card balance">
+                    <div class="stat-label">结余</div>
+                    <div class="stat-value">¥${balance.toFixed(2)}</div>
+                </div>
+            </div>
+            
+            <h3>交易记录明细</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>日期</th>
+                        <th>类型</th>
+                        <th>分类</th>
+                        <th>金额</th>
+                        <th>描述</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${dataToExport.map(record => `
+                        <tr class="${record.type}-row">
+                            <td>${formatDate(record.date)}</td>
+                            <td>${record.type === 'income' ? '收入' : '支出'}</td>
+                            <td>${getCategoryName(record.category)}</td>
+                            <td>¥${parseFloat(record.amount).toFixed(2)}</td>
+                            <td>${record.description || '-'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+            
+            ${Object.keys(categorySummary).length > 0 ? `
+            <div class="category-summary">
+                <h3>支出分类统计</h3>
+                ${Object.entries(categorySummary)
+                    .sort((a, b) => b[1] - a[1])
+                    .map(([category, amount]) => `
+                    <div class="category-item">
+                        <span>${category}</span>
+                        <span>¥${amount.toFixed(2)}</span>
+                    </div>
+                `).join('')}
+            </div>
+            ` : ''}
+            
+            <div class="print-footer">
+                <p>--- 报告结束 ---</p>
+                <p>本报告由个人财务管理工具生成</p>
+                <p>© ${new Date().getFullYear()} - 仅供个人使用</p>
+            </div>
+            
+            <div class="no-print" style="margin-top: 30px; text-align: center;">
+                <button onclick="window.print()" style="padding: 10px 20px; background: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    打印报告
+                </button>
+                <button onclick="window.close()" style="padding: 10px 20px; margin-left: 10px; background: #95a5a6; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    关闭窗口
+                </button>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    printWindow.document.write(printContent);
+    printWindow.document.close();
+    
+    // 延迟自动打印
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+}
+
+// 4. 添加事件监听器
+// 在DOMContentLoaded事件监听器中添加：
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('📄 DOM加载完成');
+    
+    // 初始化应用
+    initializeApp();
+    
+    // 绑定事件
+    addRecordForm.addEventListener('submit', handleFormSubmit);
+    typeSelect.addEventListener('change', updateCategoryOptions);
+    filterTypeSelect.addEventListener('change', handleFilterChange);
+    filterMonthInput.addEventListener('change', handleFilterChange);
+    
+    // 图表筛选事件
+    document.getElementById('chart-type-select')?.addEventListener('change', function() {
+        if (this.value === 'year') {
+            showMessage('年度统计功能将在下一步实现', 'info');
+            this.value = 'month'; // 重置为月份
+        }
+    });
     
     // 显示测试消息
     setTimeout(() => {
