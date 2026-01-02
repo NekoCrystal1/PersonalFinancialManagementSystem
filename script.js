@@ -360,7 +360,7 @@ function renderTransactions() {
     console.log(`📋 渲染了 ${filteredTransactions.length} 条记录`);
 }
 
-// 3. 更新分类下拉选项
+/**更新分类下拉选项 */
 function updateCategoryOptions() {
     const selectedType = typeSelect.value;
     
@@ -392,7 +392,7 @@ function updateCategoryOptions() {
 }
 
 // ==================== 事件处理函数 ====================
-// 1. 表单提交处理
+/**表单提交处理 */
 async function handleFormSubmit(event) {
     event.preventDefault();
     
@@ -495,7 +495,7 @@ async function handleFormSubmit(event) {
     }
 }
 
-// 2. 筛选处理
+/**筛选处理 */
 function handleFilterChange() {
     currentFilter = filterTypeSelect.value;
     currentMonth = filterMonthInput.value;
@@ -622,6 +622,7 @@ async function initializeApp() {
 }
 
 // ==================== 事件监听器 ====================
+/**添加事件监听器 */
 document.addEventListener('DOMContentLoaded', () => {
     console.log('📄 DOM加载完成');
     
@@ -633,6 +634,14 @@ document.addEventListener('DOMContentLoaded', () => {
     typeSelect.addEventListener('change', updateCategoryOptions);
     filterTypeSelect.addEventListener('change', handleFilterChange);
     filterMonthInput.addEventListener('change', handleFilterChange);
+    
+    // 图表筛选事件
+    document.getElementById('chart-type-select')?.addEventListener('change', function() {
+        if (this.value === 'year') {
+            showMessage('年度统计功能将在下一步实现', 'info');
+            this.value = 'month'; // 重置为月份
+        }
+    });
     
     // 显示测试消息
     setTimeout(() => {
@@ -1064,34 +1073,6 @@ function printReport() {
     }, 500);
 }
 
-// 4. 添加事件监听器
-// 在DOMContentLoaded事件监听器中添加：
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('📄 DOM加载完成');
-    
-    // 初始化应用
-    initializeApp();
-    
-    // 绑定事件
-    addRecordForm.addEventListener('submit', handleFormSubmit);
-    typeSelect.addEventListener('change', updateCategoryOptions);
-    filterTypeSelect.addEventListener('change', handleFilterChange);
-    filterMonthInput.addEventListener('change', handleFilterChange);
-    
-    // 图表筛选事件
-    document.getElementById('chart-type-select')?.addEventListener('change', function() {
-        if (this.value === 'year') {
-            showMessage('年度统计功能将在下一步实现', 'info');
-            this.value = 'month'; // 重置为月份
-        }
-    });
-    
-    // 显示测试消息
-    setTimeout(() => {
-        showMessage('个人财务管理工具已就绪！', 'success');
-    }, 1000);
-});
-
 // ==================== 预算管理功能 ====================
 
 let budgets = [];
@@ -1324,12 +1305,8 @@ function initBudgetCategoryOptions() {
 function initBudgetForm() {
     const budgetForm = document.getElementById('set-budget-form');
     
-    console.error("add");
     budgetForm.addEventListener('submit', async function(event) {
         event.preventDefault();
-
-        const err = new Error();
-        console.error("from" + err.stack);
         
         const categorySelect = document.getElementById('budget-category');
         const amountInput = document.getElementById('budget-amount');
