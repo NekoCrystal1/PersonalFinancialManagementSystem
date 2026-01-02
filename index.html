@@ -6,6 +6,8 @@
     <title>我的个人记账本</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- 新增Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -91,6 +93,71 @@
                         <i class="fas fa-save"></i> 保存记录
                     </button>
                 </form>
+            </div>
+
+            <!-- 图表容器 -->
+            <div class="charts-section">
+                <h2><i class="fas fa-chart-pie"></i> 收支统计</h2>
+                
+                <div class="charts-container">
+                    <div class="chart-wrapper">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-pie"></i> 收支比例</h3>
+                            <div class="chart-legend" id="pie-chart-legend"></div>
+                        </div>
+                        <canvas id="pie-chart"></canvas>
+                    </div>
+                    
+                    <div class="chart-wrapper">
+                        <div class="chart-header">
+                            <h3><i class="fas fa-chart-bar"></i> 分类支出</h3>
+                            <select id="chart-type-select">
+                                <option value="month">本月</option>
+                                <option value="year">本年</option>
+                            </select>
+                        </div>
+                        <canvas id="bar-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 添加导出功能区域 -->
+            <div class="export-section">
+                <h2><i class="fas fa-file-export"></i> 数据导出</h2>
+                
+                <div class="export-buttons">
+                    <button class="btn-export btn-export-csv" onclick="exportToCSV()">
+                        <i class="fas fa-file-csv"></i>
+                        <div>
+                            <div>导出为CSV</div>
+                            <small>Excel可打开</small>
+                        </div>
+                    </button>
+                    
+                    <button class="btn-export btn-export-pdf" onclick="exportToPDF()">
+                        <i class="fas fa-file-pdf"></i>
+                        <div>
+                            <div>导出为PDF</div>
+                            <small>打印友好</small>
+                        </div>
+                    </button>
+                    
+                    <button class="btn-export btn-export-print" onclick="printReport()">
+                        <i class="fas fa-print"></i>
+                        <div>
+                            <div>打印报表</div>
+                            <small>直接打印</small>
+                        </div>
+                    </button>
+                </div>
+                
+                <div class="export-options" style="margin-top: 20px;">
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <input type="checkbox" id="export-current-month" checked>
+                        仅导出本月数据
+                    </label>
+                    <small style="color: #7f8c8d; display: block; margin-top: 5px;">取消勾选将导出所有数据</small>
+                </div>
             </div>
 
             <!-- 3. 记录列表区域 -->

@@ -505,3 +505,193 @@ tbody td {
 #add-record-form:has(#cancel-edit-btn) .btn-submit {
     margin-top: 0;
 }
+
+/* ====== 图表区域样式 ====== */
+.charts-section {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.charts-section h2 {
+    color: #2c3e50;
+    margin-bottom: 25px;
+    font-size: 1.8rem;
+}
+
+.charts-section h2 i {
+    color: #9b59b6;
+    margin-right: 10px;
+}
+
+.charts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+    gap: 30px;
+    margin-top: 20px;
+}
+
+.chart-wrapper {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.05);
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e0e6ed;
+}
+
+.chart-header h3 {
+    color: #34495e;
+    font-size: 1.3rem;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.chart-header h3 i {
+    color: #3498db;
+}
+
+.chart-header select {
+    padding: 8px 15px;
+    border: 2px solid #e0e6ed;
+    border-radius: 6px;
+    font-size: 14px;
+    background-color: white;
+    min-width: 120px;
+}
+
+.chart-header select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+.chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    font-size: 14px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.legend-color {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+}
+
+.legend-label {
+    color: #34495e;
+    font-weight: 500;
+}
+
+.legend-value {
+    color: #7f8c8d;
+    font-weight: 600;
+}
+
+canvas {
+    max-height: 300px;
+    width: 100% !important;
+}
+
+/* ====== 导出功能样式 ====== */
+.export-section {
+    background: white;
+    border-radius: 15px;
+    padding: 30px;
+    margin-bottom: 40px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+}
+
+.export-section h2 {
+    color: #2c3e50;
+    margin-bottom: 25px;
+    font-size: 1.8rem;
+}
+
+.export-section h2 i {
+    color: #2ecc71;
+    margin-right: 10px;
+}
+
+.export-buttons {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+}
+
+.btn-export {
+    background: linear-gradient(135deg, #3498db, #2980b9);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 15px 20px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    text-align: center;
+}
+
+.btn-export:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(52, 152, 219, 0.3);
+}
+
+.btn-export-csv {
+    background: linear-gradient(135deg, #2ecc71, #27ae60);
+}
+
+.btn-export-csv:hover {
+    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+}
+
+.btn-export-pdf {
+    background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+
+.btn-export-pdf:hover {
+    box-shadow: 0 5px 15px rgba(231, 76, 60, 0.3);
+}
+
+.btn-export-print {
+    background: linear-gradient(135deg, #9b59b6, #8e44ad);
+}
+
+.btn-export-print:hover {
+    box-shadow: 0 5px 15px rgba(155, 89, 182, 0.3);
+}
+
+@media (max-width: 768px) {
+    .charts-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-wrapper {
+        min-width: 100%;
+    }
+    
+    .export-buttons {
+        grid-template-columns: 1fr;
+    }
+}
