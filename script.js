@@ -1139,28 +1139,7 @@ async function saveBudget(budgetData) {
     }
 }
 
-// 4. 删除预算
-async function deleteBudget(id) {
-    try {
-        const response = await fetch(`${API_BASE_URL}/budgets/${id}`, {
-            method: 'DELETE'
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(errorData.error || '删除失败');
-        }
-        
-        const result = await response.json();
-        console.log('✅ 预算删除成功:', result);
-        return result;
-    } catch (error) {
-        console.error('❌ 删除预算失败:', error);
-        throw error;
-    }
-}
-
-// 5. 更新预算汇总卡片
+/**更新预算汇总卡片 */
 function updateBudgetSummaryCards() {
     let totalBudget = 0;
     let totalUsed = 0;
@@ -1190,7 +1169,7 @@ function updateBudgetSummaryCards() {
     }
 }
 
-// 6. 渲染预算列表
+/**渲染预算列表 */
 function renderBudgets() {
     const budgetsBody = document.getElementById('budgets-body');
     const loadingRow = document.getElementById('budget-loading');
@@ -1218,6 +1197,21 @@ function renderBudgets() {
         const actualAmount = parseFloat(item.actual_amount);
         const usagePercentage = budgetAmount > 0 ? Math.round((actualAmount / budgetAmount) * 100) : 0;
         
+        // 关键修复：找到对应的预算记录来获取ID
+        const budgetRecord = budgets.find(b => 
+            b.category_id === item.category_id && 
+            b.month === currentBudgetMonth
+        );
+        
+        const budgetId = budgetRecord ? budgetRecord.id : null;
+        
+        console.log(`预算项匹配:`, {
+            category_id: item.category_id,
+            budget_record_found: !!budgetRecord,
+            budget_id: budgetId,
+            budget_amount: budgetAmount
+        });
+
         // 确定状态
         let statusClass = 'status-within';
         let statusText = '正常';
@@ -1396,7 +1390,7 @@ function initMonthNavigation() {
     updateMonthDisplay();
 }
 
-// 10. 加载预算数据
+/**加载预算数据 */
 async function loadBudgetData() {
     try {
         console.log(`📂 正在加载 ${currentBudgetMonth} 的预算数据...`);
@@ -1410,6 +1404,22 @@ async function loadBudgetData() {
         budgets = budgetsData;
         budgetSummary = summaryData;
         
+        // 验证数据：确保每个预算统计项都能找到对应的预算记录
+        budgetSummary.forEach(item => {
+            const matchingBudget = budgets.find(b => 
+                b.category_id === item.category_id && 
+                b.month === currentBudgetMonth
+            );
+            
+            if (matchingBudget) {
+                console.log(`✅ 匹配成功: 分类 ${item.category_name} -> 预算ID ${matchingBudget.id}`);
+                item.id = matchingBudget.id; // 确保统计项也有ID
+            } else {
+                console.log(`⚠️ 未匹配: 分类 ${item.category_name} 没有对应的预算记录`);
+                item.id = null;
+            }
+        });
+        
         // 更新UI
         updateBudgetSummaryCards();
         renderBudgets();
@@ -1421,7 +1431,7 @@ async function loadBudgetData() {
     }
 }
 
-// 11. 编辑预算
+/**编辑预算 */
 function editBudget(categoryId, currentAmount) {
     const budgetCategorySelect = document.getElementById('budget-category');
     const budgetAmountInput = document.getElementById('budget-amount');
@@ -1456,20 +1466,59 @@ function setBudgetForCategory(categoryId) {
     showMessage('请为选中的分类设置预算金额', 'info');
 }
 
-// 13. 删除预算记录
+
+/**删除预算记录 */
 async function deleteBudgetRecord(id) {
+    // 1. 验证ID
+    if (!id || isNaN(id) || id <= 0) {
+        console.error('❌ 删除失败: 无效的预算ID', id);
+        showMessage('删除失败: 无效的预算ID', 'error');
+        return;
+    }
+    
+    // 2. 确认对话框
     if (!confirm('确定要删除这个预算设置吗？此操作不可撤销。')) {
         return;
     }
     
     try {
-        console.log(`🗑️ 正在删除预算: ${id}`);
-        await deleteBudget(id);
+        console.log(`🗑️ 正在删除预算，ID: ${id}`);
         
-        // 重新加载数据
-        await loadBudgetData();
+        // 3. 发送删除请求
+        const response = await fetch(`${API_BASE_URL}/budgets/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json'
+            }
+        });
+        
+        // 4. 检查响应
+        if (!response.ok) {
+            let errorMessage = `HTTP错误: ${response.status}`;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || errorData.details || errorMessage;
+            } catch (e) {
+                // 如果响应不是JSON，使用状态文本
+                errorMessage = `${response.status} ${response.statusText}`;
+            }
+            throw new Error(errorMessage);
+        }
+        
+        // 5. 处理成功响应
+        const result = await response.json();
+        console.log('✅ 预算删除成功:', result);
+        
+        // 6. 从本地数据中移除
+        budgets = budgets.filter(b => b.id !== id);
+        budgetSummary = budgetSummary.filter(item => item.id !== id);
+        
+        // 7. 重新渲染UI
+        updateBudgetSummaryCards();
+        renderBudgets();
         
         showMessage('预算删除成功！', 'success');
+        
     } catch (error) {
         console.error('❌ 删除预算失败:', error);
         showMessage(`删除失败: ${error.message}`, 'error');
