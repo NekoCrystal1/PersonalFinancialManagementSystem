@@ -158,6 +158,9 @@ async function deleteRecord(id) {
         // 更新UI
         updateUI();
         
+        // 重新加载预算数据（因为支出可能变化）
+        await loadBudgetData();
+
         // 显示成功消息
         showMessage('记录删除成功！', 'success');
         
@@ -466,7 +469,10 @@ async function handleFormSubmit(event) {
         
         // 更新UI
         updateUI();
-        
+
+        // 重新加载预算数据（因为支出可能变化）
+        await loadBudgetData();
+
         // 重置表单
         addRecordForm.reset();
         updateCategoryOptions();
@@ -584,20 +590,28 @@ async function initializeApp() {
     filterMonthInput.value = currentMonth;
 
     try {
-        // 1. 加载分类数据
+        // 加载分类数据
         console.log('📂 正在加载分类数据...');
         categories = await fetchCategories();
         updateCategoryOptions();
         
-        // 2. 加载交易记录
+        // 加载交易记录
         console.log('📂 正在加载交易记录...');
         allTransactions = await fetchTransactions();
         
-        // 3. 更新UI
-        // 4. 更新图表
+        // 初始化预算功能
+        console.log('📂 正在初始化预算功能...');
+        initBudgetCategoryOptions();
+        initBudgetForm();
+        initMonthNavigation();
+        
+        // 加载预算数据
+        await loadBudgetData();
+
+        // 更新UI
         updateUI();
         
-        // 5. 显示成功消息
+        // 显示成功消息
         showMessage('数据加载完成！', 'success');
         
         console.log('✅ 应用初始化完成');
@@ -1077,3 +1091,410 @@ document.addEventListener('DOMContentLoaded', () => {
         showMessage('个人财务管理工具已就绪！', 'success');
     }, 1000);
 });
+
+// ==================== 预算管理功能 ====================
+
+let budgets = [];
+let currentBudgetMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+let budgetSummary = [];
+
+// 1. 获取预算列表
+async function fetchBudgets(month = currentBudgetMonth) {
+    try {
+        console.log(`📡 正在获取 ${month} 的预算数据...`);
+        const response = await fetch(`${API_BASE_URL}/budgets?month=${month}`);
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log(`✅ 获取到 ${data.length} 条预算记录`);
+        return data;
+    } catch (error) {
+        console.error('❌ 获取预算列表失败:', error);
+        showMessage('获取预算数据失败', 'error');
+        return [];
+    }
+}
+
+// 2. 获取预算统计
+async function fetchBudgetSummary(month = currentBudgetMonth) {
+    try {
+        console.log(`📊 正在获取 ${month} 的预算统计...`);
+        const response = await fetch(`${API_BASE_URL}/budgets/summary/${month}`);
+        if (!response.ok) {
+            throw new Error(`HTTP错误: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log(`✅ 获取到 ${data.length} 条预算统计`);
+        return data;
+    } catch (error) {
+        console.error('❌ 获取预算统计失败:', error);
+        return [];
+    }
+}
+
+// 3. 添加或更新预算
+async function saveBudget(budgetData) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/budgets`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(budgetData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.details || `HTTP错误: ${response.status}`);
+        }
+        
+        const newBudget = await response.json();
+        console.log('✅ 预算保存成功:', newBudget);
+        return newBudget;
+    } catch (error) {
+        console.error('❌ 保存预算失败:', error);
+        throw error;
+    }
+}
+
+// 4. 删除预算
+async function deleteBudget(id) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/budgets/${id}`, {
+            method: 'DELETE'
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || '删除失败');
+        }
+        
+        const result = await response.json();
+        console.log('✅ 预算删除成功:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ 删除预算失败:', error);
+        throw error;
+    }
+}
+
+// 5. 更新预算汇总卡片
+function updateBudgetSummaryCards() {
+    let totalBudget = 0;
+    let totalUsed = 0;
+    
+    budgetSummary.forEach(item => {
+        totalBudget += parseFloat(item.budget_amount);
+        totalUsed += parseFloat(item.actual_amount);
+    });
+    
+    const totalUsage = totalBudget > 0 ? Math.round((totalUsed / totalBudget) * 100) : 0;
+    
+    // 更新DOM
+    document.getElementById('total-budget').textContent = formatAmount(totalBudget);
+    document.getElementById('total-used').textContent = formatAmount(totalUsed);
+    document.getElementById('total-usage').textContent = `${totalUsage}%`;
+    
+    // 根据使用率添加颜色
+    const usageElement = document.getElementById('total-usage');
+    usageElement.className = 'summary-value';
+    
+    if (totalUsage <= 70) {
+        usageElement.style.color = '#2ecc71';
+    } else if (totalUsage <= 90) {
+        usageElement.style.color = '#f39c12';
+    } else {
+        usageElement.style.color = '#e74c3c';
+    }
+}
+
+// 6. 渲染预算列表
+function renderBudgets() {
+    const budgetsBody = document.getElementById('budgets-body');
+    const loadingRow = document.getElementById('budget-loading');
+    const noBudgetsElement = document.getElementById('no-budgets');
+    
+    // 隐藏加载状态
+    if (loadingRow) loadingRow.style.display = 'none';
+    
+    // 清空表格
+    budgetsBody.innerHTML = '';
+    
+    // 检查是否有数据
+    if (budgetSummary.length === 0) {
+        noBudgetsElement.style.display = 'block';
+        return;
+    }
+    
+    // 显示表格
+    noBudgetsElement.style.display = 'none';
+    
+    // 添加数据行
+    budgetSummary.forEach(item => {
+        const row = document.createElement('tr');
+        const budgetAmount = parseFloat(item.budget_amount);
+        const actualAmount = parseFloat(item.actual_amount);
+        const usagePercentage = budgetAmount > 0 ? Math.round((actualAmount / budgetAmount) * 100) : 0;
+        
+        // 确定状态
+        let statusClass = 'status-within';
+        let statusText = '正常';
+        let barClass = 'usage-bar safe';
+        
+        if (usagePercentage > 90) {
+            statusClass = 'status-over';
+            statusText = '超支';
+            barClass = 'usage-bar danger';
+        } else if (usagePercentage > 70) {
+            statusClass = 'status-warning';
+            statusText = '预警';
+            barClass = 'usage-bar warning';
+        }
+        
+        // 确定是否显示操作按钮（有预算的设置才显示）
+        const hasBudget = budgetAmount > 0;
+        const categoryId = item.category_id;
+        
+        row.innerHTML = `
+            <td>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="category-icon">${item.category_icon || '📦'}</span>
+                    ${item.category_name || '未分类'}
+                </div>
+            </td>
+            <td class="amount-cell">${budgetAmount > 0 ? formatAmount(budgetAmount) : '未设置'}</td>
+            <td class="amount-cell">${formatAmount(actualAmount)}</td>
+            <td>
+                ${hasBudget ? `
+                    <div style="margin-bottom: 5px;">
+                        <strong>${usagePercentage}%</strong>
+                    </div>
+                    <div class="usage-bar-container">
+                        <div class="${barClass}" style="width: ${Math.min(usagePercentage, 100)}%"></div>
+                    </div>
+                ` : '--'}
+            </td>
+            <td>
+                ${hasBudget ? `<span class="budget-status ${statusClass}">${statusText}</span>` : '--'}
+            </td>
+            <td>
+                ${hasBudget ? `
+                    <div class="budget-actions">
+                        <button class="btn-budget-edit" onclick="editBudget(${categoryId}, ${budgetAmount})">
+                            <i class="fas fa-edit"></i> 编辑
+                        </button>
+                        <button class="btn-budget-delete" onclick="deleteBudgetRecord(${item.id})">
+                            <i class="fas fa-trash"></i> 删除
+                        </button>
+                    </div>
+                ` : `
+                    <button class="btn-budget-edit" onclick="setBudgetForCategory(${categoryId})">
+                        <i class="fas fa-plus"></i> 设置
+                    </button>
+                `}
+            </td>
+        `;
+        
+        budgetsBody.appendChild(row);
+    });
+    
+    console.log(`📋 渲染了 ${budgetSummary.length} 条预算记录`);
+}
+
+// 7. 初始化预算分类下拉菜单
+function initBudgetCategoryOptions() {
+    const budgetCategorySelect = document.getElementById('budget-category');
+    
+    // 清空现有选项
+    budgetCategorySelect.innerHTML = '<option value="">选择支出分类</option>';
+    
+    // 只显示支出分类
+    const expenseCategories = categories.filter(c => c.type === 'expense');
+    
+    expenseCategories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = `${category.icon || '📦'} ${category.name}`;
+        budgetCategorySelect.appendChild(option);
+    });
+}
+
+// 8. 设置预算表单提交处理
+function initBudgetForm() {
+    const budgetForm = document.getElementById('set-budget-form');
+    
+    console.error("add");
+    budgetForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+
+        const err = new Error();
+        console.error("from" + err.stack);
+        
+        const categorySelect = document.getElementById('budget-category');
+        const amountInput = document.getElementById('budget-amount');
+        const submitButton = budgetForm.querySelector('button[type="submit"]');
+        
+        const originalText = submitButton.innerHTML;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 保存中...';
+        submitButton.disabled = true;
+        
+        try {
+            const budgetData = {
+                category_id: parseInt(categorySelect.value),
+                month: currentBudgetMonth,
+                amount: parseFloat(amountInput.value)
+            };
+            
+            console.log('📝 提交预算数据:', budgetData);
+            
+            if (!budgetData.category_id || !budgetData.amount || budgetData.amount <= 0) {
+                throw new Error('请填写所有字段，且金额必须大于0');
+            }
+            
+            // 保存预算
+            await saveBudget(budgetData);
+            
+            // 重新加载预算数据
+            await loadBudgetData();
+            
+            // 重置表单
+            budgetForm.reset();
+            
+            showMessage('预算设置成功！', 'success');
+            
+        } catch (error) {
+            console.error('❌ 预算设置失败:', error);
+            showMessage(`设置失败: ${error.message}`, 'error');
+        } finally {
+            submitButton.innerHTML = originalText;
+            submitButton.disabled = false;
+        }
+    });
+}
+
+// 9. 月份导航功能
+function initMonthNavigation() {
+    const prevMonthBtn = document.getElementById('prev-month');
+    const nextMonthBtn = document.getElementById('next-month');
+    const currentMonthDisplay = document.getElementById('current-month-display');
+    
+    // 更新月份显示
+    function updateMonthDisplay() {
+        currentMonthDisplay.textContent = currentBudgetMonth;
+        
+        // 禁用未来的月份按钮
+        const currentDate = new Date();
+        const currentYearMonth = currentDate.toISOString().slice(0, 7);
+        nextMonthBtn.disabled = currentBudgetMonth >= currentYearMonth;
+    }
+    
+    // 切换月份
+    async function changeMonth(direction) {
+        const [year, month] = currentBudgetMonth.split('-').map(Number);
+        
+        let newYear = year;
+        let newMonth = month + direction;
+        
+        if (newMonth < 1) {
+            newMonth = 12;
+            newYear--;
+        } else if (newMonth > 12) {
+            newMonth = 1;
+            newYear++;
+        }
+        
+        currentBudgetMonth = `${newYear}-${String(newMonth).padStart(2, '0')}`;
+        updateMonthDisplay();
+        
+        // 加载新月份的数据
+        await loadBudgetData();
+    }
+    
+    // 绑定事件
+    prevMonthBtn.addEventListener('click', () => changeMonth(-1));
+    nextMonthBtn.addEventListener('click', () => changeMonth(1));
+    
+    // 初始化显示
+    updateMonthDisplay();
+}
+
+// 10. 加载预算数据
+async function loadBudgetData() {
+    try {
+        console.log(`📂 正在加载 ${currentBudgetMonth} 的预算数据...`);
+        
+        // 并行加载预算列表和统计
+        const [budgetsData, summaryData] = await Promise.all([
+            fetchBudgets(currentBudgetMonth),
+            fetchBudgetSummary(currentBudgetMonth)
+        ]);
+        
+        budgets = budgetsData;
+        budgetSummary = summaryData;
+        
+        // 更新UI
+        updateBudgetSummaryCards();
+        renderBudgets();
+        
+        console.log(`✅ ${currentBudgetMonth} 预算数据加载完成`);
+    } catch (error) {
+        console.error('❌ 加载预算数据失败:', error);
+        showMessage('加载预算数据失败', 'error');
+    }
+}
+
+// 11. 编辑预算
+function editBudget(categoryId, currentAmount) {
+    const budgetCategorySelect = document.getElementById('budget-category');
+    const budgetAmountInput = document.getElementById('budget-amount');
+    
+    // 设置表单值
+    budgetCategorySelect.value = categoryId;
+    budgetAmountInput.value = currentAmount;
+    
+    // 滚动到表单
+    document.querySelector('.budget-form').scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'center' 
+    });
+    
+    // 聚焦到金额输入框
+    budgetAmountInput.focus();
+    
+    showMessage(`正在编辑分类预算，当前金额: ${formatAmount(currentAmount)}`, 'info');
+}
+
+// 12. 为特定分类设置预算
+function setBudgetForCategory(categoryId) {
+    const budgetCategorySelect = document.getElementById('budget-category');
+    const budgetAmountInput = document.getElementById('budget-amount');
+    
+    // 设置分类
+    budgetCategorySelect.value = categoryId;
+    
+    // 聚焦到金额输入框
+    budgetAmountInput.focus();
+    
+    showMessage('请为选中的分类设置预算金额', 'info');
+}
+
+// 13. 删除预算记录
+async function deleteBudgetRecord(id) {
+    if (!confirm('确定要删除这个预算设置吗？此操作不可撤销。')) {
+        return;
+    }
+    
+    try {
+        console.log(`🗑️ 正在删除预算: ${id}`);
+        await deleteBudget(id);
+        
+        // 重新加载数据
+        await loadBudgetData();
+        
+        showMessage('预算删除成功！', 'success');
+    } catch (error) {
+        console.error('❌ 删除预算失败:', error);
+        showMessage(`删除失败: ${error.message}`, 'error');
+    }
+}
