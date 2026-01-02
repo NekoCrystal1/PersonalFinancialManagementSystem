@@ -98,6 +98,21 @@ async function createTables(pool) {
         `);
         console.log('✅ categories表已就绪');
         
+        // 创建预算表
+        await pool.request().query(`
+            IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='budgets' AND xtype='U')
+            CREATE TABLE budgets (
+                id INT IDENTITY(1,1) PRIMARY KEY,
+                category_id INT,
+                month VARCHAR(7) NOT NULL, -- 格式: YYYY-MM
+                amount DECIMAL(10, 2) NOT NULL,
+                created_at DATETIME DEFAULT GETDATE(),
+                updated_at DATETIME DEFAULT GETDATE(),
+                FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE SET NULL
+            )
+        `);
+        console.log('✅ budgets表已就绪');
+
         return true;
     } catch (err) {
         console.error('❌ 创建表时出错:', err.message);

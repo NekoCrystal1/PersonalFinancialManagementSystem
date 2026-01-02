@@ -214,6 +214,166 @@ app.get('/api/transactions/:id', async (req, res) => {
     }
 });
 
+// ==================== 预算管理API ====================
+
+// 1. 获取预算列表
+app.get('/api/budgets', async (req, res) => {
+    try {
+        const { month } = req.query;
+        
+        let query = `
+            SELECT 
+                b.id,
+                b.category_id,
+                c.name as category_name,
+                c.icon as category_icon,
+                b.month,
+                b.amount,
+                b.created_at,
+                b.updated_at
+            FROM budgets b
+            LEFT JOIN categories c ON b.category_id = c.id
+        `;
+        
+        if (month) {
+            query += ` WHERE b.month = @month`;
+        }
+        
+        query += ` ORDER BY b.month DESC, c.name`;
+        
+        const request = pool.request();
+        if (month) {
+            request.input('month', db.sql.VarChar, month);
+        }
+        
+        const result = await request.query(query);
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: '获取预算列表失败', details: err.message });
+    }
+});
+
+// 2. 添加或更新预算
+app.post('/api/budgets', async (req, res) => {
+    try {
+        const { category_id, month, amount } = req.body;
+        
+        if (!month || !amount || amount <= 0) {
+            return res.status(400).json({ error: '缺少必需字段: month, amount' });
+        }
+        
+        // 检查是否已存在相同月份和分类的预算
+        const checkResult = await pool.request()
+            .input('category_id', category_id ? db.sql.Int : db.sql.NVarChar, category_id)
+            .input('month', db.sql.VarChar, month)
+            .query('SELECT id FROM budgets WHERE category_id = @category_id AND month = @month');
+        
+        let result;
+        if (checkResult.recordset.length > 0) {
+            // 更新现有预算
+            result = await pool.request()
+                .input('id', db.sql.Int, checkResult.recordset[0].id)
+                .input('amount', db.sql.Decimal(10, 2), parseFloat(amount))
+                .query(`
+                    UPDATE budgets 
+                    SET amount = @amount, updated_at = GETDATE()
+                    WHERE id = @id;
+                    
+                    SELECT * FROM budgets WHERE id = @id;
+                `);
+        } else {
+            // 添加新预算
+            result = await pool.request()
+                .input('category_id', category_id ? db.sql.Int : db.sql.NVarChar, category_id)
+                .input('month', db.sql.VarChar, month)
+                .input('amount', db.sql.Decimal(10, 2), parseFloat(amount))
+                .query(`
+                    INSERT INTO budgets (category_id, month, amount) 
+                    VALUES (@category_id, @month, @amount);
+                    
+                    SELECT SCOPE_IDENTITY() as id;
+                `);
+        }
+        
+        // 返回完整的预算信息
+        const budgetId = result.recordset[0].id;
+        const budgetResult = await pool.request()
+            .input('id', db.sql.Int, budgetId)
+            .query(`
+                SELECT 
+                    b.id,
+                    b.category_id,
+                    c.name as category_name,
+                    c.icon as category_icon,
+                    b.month,
+                    b.amount,
+                    b.created_at,
+                    b.updated_at
+                FROM budgets b
+                LEFT JOIN categories c ON b.category_id = c.id
+                WHERE b.id = @id
+            `);
+        
+        res.status(201).json(budgetResult.recordset[0]);
+    } catch (err) {
+        res.status(500).json({ error: '保存预算失败', details: err.message });
+    }
+});
+
+// 3. 删除预算
+app.delete('/api/budgets/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        
+        const result = await pool.request()
+            .input('id', db.sql.Int, id)
+            .query('DELETE FROM budgets WHERE id = @id');
+        
+        if (result.rowsAffected[0] === 0) {
+            return res.status(404).json({ error: '预算不存在' });
+        }
+        
+        res.json({ success: true, message: '预算删除成功', id: parseInt(id) });
+    } catch (err) {
+        res.status(500).json({ error: '删除预算失败', details: err.message });
+    }
+});
+
+// 4. 获取预算使用情况统计
+app.get('/api/budgets/summary/:month', async (req, res) => {
+    try {
+        const { month } = req.params;
+        
+        // 获取当月所有支出分类的预算和实际支出
+        const result = await pool.request()
+            .input('month', db.sql.VarChar, month)
+            .query(`
+                SELECT 
+                    c.id as category_id,
+                    c.name as category_name,
+                    c.icon as category_icon,
+                    ISNULL(b.amount, 0) as budget_amount,
+                    ISNULL(SUM(t.amount), 0) as actual_amount,
+                    CASE 
+                        WHEN ISNULL(b.amount, 0) = 0 THEN 0
+                        ELSE (ISNULL(SUM(t.amount), 0) / b.amount) * 100
+                    END as usage_percentage
+                FROM categories c
+                LEFT JOIN budgets b ON c.id = b.category_id AND b.month = @month
+                LEFT JOIN transactions t ON c.id = t.category 
+                    AND t.type = 'expense' 
+                    AND FORMAT(t.date, 'yyyy-MM') = @month
+                WHERE c.type = 'expense'
+                GROUP BY c.id, c.name, c.icon, b.amount
+                ORDER BY usage_percentage DESC, c.name
+            `);
+        
+        res.json(result.recordset);
+    } catch (err) {
+        res.status(500).json({ error: '获取预算统计失败', details: err.message });
+    }
+});
+
 // 第七部分：错误处理中间件
 app.use((err, req, res, next) => {
     console.error('❌ 服务器错误:', err.stack);

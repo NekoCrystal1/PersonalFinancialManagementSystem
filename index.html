@@ -160,6 +160,111 @@
                 </div>
             </div>
 
+            <!-- 添加预算管理器界面 -->
+            <div class="budget-section">
+                <h2><i class="fas fa-chart-line"></i> 预算管理</h2>
+                
+                <div class="budget-controls">
+                    <div class="budget-header">
+                        <h3><i class="fas fa-calendar-alt"></i> 本月预算设置</h3>
+                        <div class="month-selector">
+                            <button id="prev-month" class="btn-month-nav">
+                                <i class="fas fa-chevron-left"></i>
+                            </button>
+                            <span id="current-month-display">2024-01</span>
+                            <button id="next-month" class="btn-month-nav">
+                                <i class="fas fa-chevron-right"></i>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="budget-summary-cards">
+                        <div class="budget-summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-wallet"></i>
+                            </div>
+                            <div class="summary-content">
+                                <h4>总预算</h4>
+                                <p class="summary-value" id="total-budget">¥0.00</p>
+                            </div>
+                        </div>
+                        
+                        <div class="budget-summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-money-bill-wave"></i>
+                            </div>
+                            <div class="summary-content">
+                                <h4>已使用</h4>
+                                <p class="summary-value" id="total-used">¥0.00</p>
+                            </div>
+                        </div>
+                        
+                        <div class="budget-summary-card">
+                            <div class="summary-icon">
+                                <i class="fas fa-percentage"></i>
+                            </div>
+                            <div class="summary-content">
+                                <h4>使用率</h4>
+                                <p class="summary-value" id="total-usage">0%</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="budget-form">
+                        <h4><i class="fas fa-plus-circle"></i> 设置分类预算</h4>
+                        <form id="set-budget-form">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="budget-category"><i class="fas fa-tag"></i> 分类</label>
+                                    <select id="budget-category" name="category" required>
+                                        <option value="">选择支出分类</option>
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="budget-amount"><i class="fas fa-yen-sign"></i> 预算金额</label>
+                                    <input type="number" id="budget-amount" name="amount" min="1" step="0.01" placeholder="0.00" required>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn-budget">
+                                <i class="fas fa-save"></i> 保存预算
+                            </button>
+                        </form>
+                    </div>
+                    
+                    <div class="budget-list">
+                        <h4><i class="fas fa-list"></i> 预算明细</h4>
+                        <div class="table-container">
+                            <table id="budgets-table">
+                                <thead>
+                                    <tr>
+                                        <th>分类</th>
+                                        <th>预算金额</th>
+                                        <th>实际支出</th>
+                                        <th>使用率</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="budgets-body">
+                                    <tr id="budget-loading">
+                                        <td colspan="6" class="loading-cell">
+                                            <i class="fas fa-spinner fa-spin"></i> 正在加载预算数据...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        
+                        <div class="no-budgets" id="no-budgets" style="display: none;">
+                            <i class="fas fa-chart-pie"></i>
+                            <p>暂无预算设置，添加第一个预算吧！</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             <!-- 3. 记录列表区域 -->
             <div class="records-section">
                 <div class="section-header">
