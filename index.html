@@ -3,6 +3,134 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人财务管理工具</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <!-- 登录界面（默认显示） -->
+    <div id="login-container" class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1><i class="fas fa-wallet"></i> 个人财务管理工具</h1>
+                <p class="subtitle">安全登录，管理您的财务</p>
+            </div>
+            
+            <div class="login-tabs">
+                <button class="tab-btn active" data-tab="login">登录</button>
+                <button class="tab-btn" data-tab="register">注册</button>
+            </div>
+            
+            <!-- 登录表单 -->
+            <form id="login-form" class="login-form active">
+                <div class="form-group">
+                    <label for="login-username"><i class="fas fa-user"></i> 用户名/邮箱</label>
+                    <input type="text" id="login-username" name="username" placeholder="请输入用户名或邮箱" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="login-password"><i class="fas fa-lock"></i> 密码</label>
+                    <input type="password" id="login-password" name="password" placeholder="请输入密码" required>
+                    <div class="password-toggle">
+                        <i class="fas fa-eye" id="toggle-login-password"></i>
+                    </div>
+                </div>
+                
+                <div class="form-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="remember-me">
+                        <span>记住我</span>
+                    </label>
+                    <a href="#" class="forgot-password">忘记密码？</a>
+                </div>
+                
+                <button type="submit" class="btn-login">
+                    <i class="fas fa-sign-in-alt"></i> 登录
+                </button>
+                
+                <div class="login-footer">
+                    <p>测试账号: admin / 123456</p>
+                    <p>或使用: test / 123456</p>
+                </div>
+            </form>
+            
+            <!-- 注册表单 -->
+            <form id="register-form" class="login-form">
+                <div class="form-group">
+                    <label for="register-username"><i class="fas fa-user"></i> 用户名</label>
+                    <input type="text" id="register-username" name="username" placeholder="请输入用户名" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-email"><i class="fas fa-envelope"></i> 邮箱</label>
+                    <input type="email" id="register-email" name="email" placeholder="请输入邮箱" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-password"><i class="fas fa-lock"></i> 密码</label>
+                    <input type="password" id="register-password" name="password" placeholder="至少6位字符" required>
+                    <div class="password-toggle">
+                        <i class="fas fa-eye" id="toggle-register-password"></i>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label for="register-confirm-password"><i class="fas fa-lock"></i> 确认密码</label>
+                    <input type="password" id="register-confirm-password" name="confirm_password" placeholder="请再次输入密码" required>
+                    <div class="password-toggle">
+                        <i class="fas fa-eye" id="toggle-register-confirm-password"></i>
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn-register">
+                    <i class="fas fa-user-plus"></i> 注册
+                </button>
+            </form>
+            
+            <div class="login-message" id="login-message"></div>
+        </div>
+    </div>
+    
+    <!-- 主应用界面（默认隐藏） -->
+    <div id="app-container" class="container" style="display: none;">
+        <!-- 顶部导航栏 -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1><i class="fas fa-wallet"></i> 个人财务管理工具</h1>
+                <p class="subtitle">欢迎，<span id="current-user">用户</span></p>
+            </div>
+            
+            <div class="header-right">
+                <div class="user-info">
+                    <i class="fas fa-user-circle user-avatar"></i>
+                    <span id="username-display">未登录</span>
+                </div>
+                <button id="logout-btn" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> 退出
+                </button>
+            </div>
+        </header>
+        
+        <!-- 原有main内容保持不变 -->
+        <main>
+            <!-- ... 原有的所有内容 ... -->
+        </main>
+        
+        <footer>
+            <p>© 2024 个人财务管理工具 | 用户: <span id="footer-username">未登录</span></p>
+        </footer>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>我的个人记账本</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

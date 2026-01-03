@@ -1419,7 +1419,7 @@ async function loadBudgetData() {
                 item.id = null;
             }
         });
-        
+
         // 更新UI
         updateBudgetSummaryCards();
         renderBudgets();
@@ -1522,5 +1522,257 @@ async function deleteBudgetRecord(id) {
     } catch (error) {
         console.error('❌ 删除预算失败:', error);
         showMessage(`删除失败: ${error.message}`, 'error');
+    }
+}
+
+// 用户登录
+async function loginUser(username, password) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `登录失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('❌ 登录失败:', error);
+        throw error;
+    }
+}
+
+// 用户注册
+async function registerUser(userData) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/auth/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData)
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || `注册失败: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        return data;
+    } catch (error) {
+        console.error('❌ 注册失败:', error);
+        throw error;
+    }
+}
+
+// ==================== 用户认证管理 ====================
+function saveAuthInfo(token, user) {
+    authToken = token;
+    currentUser = user;
+    localStorage.setItem('authToken', token);
+    localStorage.setItem('user', JSON.stringify(user));
+}
+
+function clearAuthInfo() {
+    authToken = null;
+    currentUser = null;
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('user');
+}
+
+function checkAuthStatus() {
+    const token = localStorage.getItem('authToken');
+    const userStr = localStorage.getItem('user');
+    
+    if (token && userStr) {
+        try {
+            authToken = token;
+            currentUser = JSON.parse(userStr);
+            return true;
+        } catch (error) {
+            clearAuthInfo();
+            return false;
+        }
+    }
+    return false;
+}
+
+// ==================== 界面切换 ====================
+function showLoginScreen() {
+    const loginContainer = document.getElementById('login-container');
+    const appContainer = document.getElementById('app-container');
+    
+    if (loginContainer) loginContainer.style.display = 'flex';
+    if (appContainer) appContainer.style.display = 'none';
+}
+
+function showAppScreen() {
+    const loginContainer = document.getElementById('login-container');
+    const appContainer = document.getElementById('app-container');
+    const currentUserElement = document.getElementById('current-user');
+    const usernameDisplay = document.getElementById('username-display');
+    const footerUsername = document.getElementById('footer-username');
+    
+    if (loginContainer) loginContainer.style.display = 'none';
+    if (appContainer) appContainer.style.display = 'block';
+    
+    // 更新用户信息显示
+    if (currentUserElement) {
+        currentUserElement.textContent = currentUser?.username || '用户';
+    }
+    if (usernameDisplay) {
+        usernameDisplay.textContent = currentUser?.username || '未登录';
+    }
+    if (footerUsername) {
+        footerUsername.textContent = currentUser?.username || '未登录';
+    }
+}
+
+// ==================== 登录/注册表单处理 ====================
+function initLoginForm() {
+    const loginForm = document.getElementById('login-form');
+    const loginUsernameInput = document.getElementById('login-username');
+    const loginPasswordInput = document.getElementById('login-password');
+    const toggleLoginPassword = document.getElementById('toggle-login-password');
+    
+    if (!loginForm) return;
+    
+    loginForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        const submitBtn = loginForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 登录中...';
+        submitBtn.disabled = true;
+        
+        try {
+            const username = loginUsernameInput.value.trim();
+            const password = loginPasswordInput.value;
+            
+            if (!username || !password) {
+                throw new Error('请输入用户名和密码');
+            }
+            
+            const result = await loginUser(username, password);
+            
+            if (result.success) {
+                saveAuthInfo(result.token, result.user);
+                showAppScreen();
+                showMessage('登录成功！', 'success');
+                
+                // 初始化应用数据
+                await initializeAppData();
+            } else {
+                throw new Error(result.message || '登录失败');
+            }
+        } catch (error) {
+            console.error('❌ 登录失败:', error);
+            showMessage(`登录失败: ${error.message}`, 'error');
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    });
+    
+    // 密码显示/隐藏切换
+    if (toggleLoginPassword && loginPasswordInput) {
+        toggleLoginPassword.addEventListener('click', function() {
+            const type = loginPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            loginPasswordInput.setAttribute('type', type);
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+    }
+}
+
+function initRegisterForm() {
+    const registerForm = document.getElementById('register-form');
+    const registerUsernameInput = document.getElementById('register-username');
+    const registerEmailInput = document.getElementById('register-email');
+    const registerPasswordInput = document.getElementById('register-password');
+    const registerConfirmPasswordInput = document.getElementById('register-confirm-password');
+    const toggleRegisterPassword = document.getElementById('toggle-register-password');
+    const toggleRegisterConfirmPassword = document.getElementById('toggle-register-confirm-password');
+    
+    if (!registerForm) return;
+    
+    registerForm.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        
+        const submitBtn = registerForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> 注册中...';
+        submitBtn.disabled = true;
+        
+        try {
+            const username = registerUsernameInput.value.trim();
+            const email = registerEmailInput.value.trim();
+            const password = registerPasswordInput.value;
+            const confirmPassword = registerConfirmPasswordInput.value;
+            
+            if (!username || !email || !password || !confirmPassword) {
+                throw new Error('请填写所有字段');
+            }
+            
+            if (password.length < 6) {
+                throw new Error('密码长度至少6位');
+            }
+            
+            if (password !== confirmPassword) {
+                throw new Error('两次输入的密码不一致');
+            }
+            
+            const result = await registerUser({ username, email, password });
+            
+            if (result.success) {
+                saveAuthInfo(result.token, result.user);
+                showAppScreen();
+                showMessage('注册成功！已自动登录', 'success');
+                
+                // 切换到登录标签
+                const loginTab = document.querySelector('[data-tab="login"]');
+                const registerTab = document.querySelector('[data-tab="register"]');
+                if (loginTab && registerTab) {
+                    loginTab.classList.add('active');
+                    registerTab.classList.remove('active');
+                    document.getElementById('login-form').classList.add('active');
+                    document.getElementById('register-form').classList.remove('active');
+                }
+                
+                // 初始化应用数据
+                await initializeAppData();
+            } else {
+                throw new Error(result.message || '注册失败');
+            }
+        } catch (error) {
+            console.error('❌ 注册失败:', error);
+            showMessage(`注册失败: ${error.message}`, 'error');
+        } finally {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }
+    });
+    
+    // 密码显示/隐藏切换
+    if (toggleRegisterPassword && registerPasswordInput) {
+        toggleRegisterPassword.addEventListener('click', function() {
+            const type = registerPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            registerPasswordInput.setAttribute('type', type);
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
+    }
+    
+    if (toggleRegisterConfirmPassword && registerConfirmPasswordInput) {
+        toggleRegisterConfirmPassword.addEventListener('click', function() {
+            const type = registerConfirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            registerConfirmPasswordInput.setAttribute('type', type);
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+        });
     }
 }
